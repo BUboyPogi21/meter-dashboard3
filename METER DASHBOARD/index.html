@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA Configuration -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Meter Dashboard">
+    <link rel="manifest" id="pwa-manifest">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 4px; }
+        
+        /* Remove default browser arrows on number inputs */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        /* Standard Input Styling */
+        .meter-input {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(71, 85, 105, 0.8);
+            color: #f8fafc;
+            text-align: right;
+            padding: 6px 8px;
+            border-radius: 6px;
+            width: 100%;
+            font-family: monospace;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        /* Extended Wide Input specifically for Mobile Meter & Token Inputs */
+        .meter-input-extended {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #f8fafc;
+            text-align: right;
+            padding: 8px 10px;
+            border-radius: 6px;
+            width: 100%;
+            min-width: 110px;
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .remark-input {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(71, 85, 105, 0.8);
+            color: #f8fafc;
+            text-align: left;
+            padding: 6px 8px;
+            border-radius: 6px;
+            width: 100%;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .setting-input {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(71, 85, 105, 0.8);
+            color: #f8fafc;
+            padding: 5px 8px;
+            border-radius: 6px;
+            width: 100%;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .title-input {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(71, 85, 105, 0.6);
+            color: #ffffff;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            transition: all 0.2s;
+        }
+
+        .title-input:focus, .meter-input:focus, .meter-input-extended:focus, .remark-input:focus, .setting-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(30, 41, 59, 0.95);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+        }
+
+        @media (min-width: 768px) {
+            .meter-input { font-size: 12px; padding: 4px 6px; }
+            .meter-input-extended { font-size: 13px; padding: 5px 8px; min-width: 95px; }
+            .remark-input { font-size: 11px; padding: 4px 6px; }
+        }
+        .week-day-input {
+            text-align: center;
+            font-weight: 600;
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        .sticky-col {
+            position: sticky;
+            left: 0;
+            background-color: rgba(15, 23, 42, 0.95);
+            z-index: 10;
+        }
+
+        /* Floating Machine Settings Box Styling */
+        .machine-settings-edit-box {
+            width: 480px;
+            max-width: 90vw;
+            max-height: 85vh;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+        }
+
+        @media screen and (max-width: 640px) {
+            .machine-settings-edit-box {
+                width: 95vw !important;
+                max-width: 95vw;
+                max-height: 90vh;
+            }
+        }
+
+        /* PRINT LAYOUT OPTIMIZATIONS */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 6mm;
+            }
+
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+                font-size: 8.5pt !important;
+            }
+
+            header nav, header button, header label, #csvFileInput, .no-print, header i.fa-pen-to-square, #machineSettingsModal {
+                display: none !important;
+            }
+
+            .glass-card {
+                background: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                backdrop-filter: none !important;
+                padding: 0 !important;
+                margin-bottom: 8pt !important;
+            }
+
+            .title-input {
+                background: transparent !important;
+                border: none !important;
+                color: #000000 !important;
+                font-size: 16pt !important;
+                font-weight: 800 !important;
+                padding: 0 !important;
+            }
+
+            section.grid {
+                display: grid !important;
+                grid-template-columns: repeat(9, 1fr); !important;
+                gap: 4pt !important;
+            }
+
+            .glass-card div {
+                color: #000000 !important;
+            }
+
+            .glass-card .text-lg, .glass-card .text-xl {
+                font-size: 11pt !important;
+                font-weight: 800 !important;
+            }
+
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 8pt !important;
+                min-width: 0 !important;
+            }
+
+            th, td {
+                border: 1px solid #000000 !important;
+                padding: 2pt 3pt !important;
+                color: #000000 !important;
+            }
+
+            thead tr {
+                background-color: #e2e8f0 !important;
+                color: #000000 !important;
+                font-size: 7.5pt !important;
+            }
+
+            .sticky-col {
+                position: static !important;
+                background-color: transparent !important;
+            }
+
+            .meter-input, .meter-input-extended, .remark-input, .week-day-input, .setting-input, select {
+                background: transparent !important;
+                border: none !important;
+                color: #000000 !important;
+                padding: 0 !important;
+                font-size: 8pt !important;
+                font-weight: 600 !important;
+                text-align: right !important;
+                box-shadow: none !important;
+                min-width: auto !important;
+                width: auto !important;
+            }
+
+            .remark-input, .setting-input { text-align: left !important; }
+            .text-emerald-400, .text-emerald-300, .text-cyan-400 { color: #047857 !important; }
+            .text-rose-400, .text-rose-300 { color: #b91c1c !important; }
+            .text-blue-400, .text-blue-300 { color: #1d4ed8 !important; }
+            .text-indigo-400, .text-indigo-300 { color: #4338ca !important; }
+            .text-yellow-400, .text-amber-400 { color: #b45309 !important; }
+
+            .h-52, .h-64 { height: 130pt !important; }
+            .overflow-x-auto { overflow: visible !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-3 sm:p-6 custom-scrollbar">
+
+    <!-- Header Navigation & Page Tabs -->
+    <header class="mb-4 sm:mb-6 flex flex-col gap-4 border-b border-slate-800 pb-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-3">
+                    <div class="p-2 sm:p-2.5 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30 no-print">
+                        <i class="fa-solid fa-gamepad text-xl sm:text-2xl"></i>
+                    </div>
+                    <div class="w-full">
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="machineTitleInput" class="title-input text-lg sm:text-xl md:text-2xl uppercase tracking-tight" placeholder="Machine Name">
+                            <i class="fa-solid fa-pen-to-square text-slate-500 text-xs"></i>
+                            
+                            <!-- Save Status Indicator -->
+                            <span id="saveStatusIndicator" class="no-print inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 transition-all duration-300 ml-2">
+                                <i class="fa-solid fa-check text-[10px]"></i>
+                                <span>Saved</span>
+                            </span>
+                        </div>
+                        <p class="text-slate-400 text-xs sm:text-sm mt-0.5 no-print">Daily Monitoring System</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 no-print">
+                <!-- Branch Toggle Selector -->
+                <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 gap-2">
+                    <i class="fa-solid fa-code-branch text-emerald-400 text-xs"></i>
+                    <label for="branchSelect" class="text-xs text-slate-400 font-medium hidden sm:inline">Branch:</label>
+                    <select id="branchSelect" class="bg-transparent text-xs font-bold text-emerald-400 focus:outline-none cursor-pointer uppercase">
+                        <option value="TYT" class="bg-slate-800 text-slate-100">TYT</option>
+                        <option value="MOP" class="bg-slate-800 text-slate-100">MOP</option>
+                        <option value="RCR" class="bg-slate-800 text-slate-100">RCR</option>
+                        <option value="PYM" class="bg-slate-800 text-slate-100">PYM</option>
+                        <option value="CAM" class="bg-slate-800 text-slate-100">CAM</option>
+                        <option value="LPP" class="bg-slate-800 text-slate-100">LPP</option>
+                        <option value="SEO" class="bg-slate-800 text-slate-100">SEO</option>
+                        <option value="RAM" class="bg-slate-800 text-slate-100">RAM</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 gap-2">
+                    <i class="fa-solid fa-calendar-days text-blue-400 text-xs"></i>
+                    <label for="monthSelect" class="text-xs text-slate-400 font-medium hidden sm:inline">Month:</label>
+                    <select id="monthSelect" class="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer">
+                        <option value="January" class="bg-slate-800 text-slate-100">January</option>
+                        <option value="February" class="bg-slate-800 text-slate-100">February</option>
+                        <option value="March" class="bg-slate-800 text-slate-100">March</option>
+                        <option value="April" class="bg-slate-800 text-slate-100">April</option>
+                        <option value="May" class="bg-slate-800 text-slate-100">May</option>
+                        <option value="June" class="bg-slate-800 text-slate-100">June</option>
+                        <option value="July" class="bg-slate-800 text-slate-100">July</option>
+                        <option value="August" class="bg-slate-800 text-slate-100">August</option>
+                        <option value="September" class="bg-slate-800 text-slate-100">September</option>
+                        <option value="October" class="bg-slate-800 text-slate-100">October</option>
+                        <option value="November" class="bg-slate-800 text-slate-100">November</option>
+                        <option value="December" class="bg-slate-800 text-slate-100">December</option>
+                    </select>
+                </div>
+
+                <!-- Save Controls -->
+                <button id="manualSaveBtn" class="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-lg text-xs font-medium transition flex items-center gap-1.5 touch-manipulation" title="Manual Save Data">
+                    <i class="fa-solid fa-floppy-disk text-blue-400"></i> Save Now
+                </button>
+
+                <!-- Machine Settings Toggle Button -->
+                <button id="toggleSettingsBtn" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition border border-slate-700 flex items-center gap-1.5 touch-manipulation">
+                    <i class="fa-solid fa-sliders text-blue-400"></i> <span id="toggleSettingsBtnText">Settings</span>
+                </button>
+
+                <label class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition border border-slate-700 flex items-center gap-1.5 cursor-pointer touch-manipulation">
+                    <i class="fa-solid fa-file-import text-emerald-400"></i> Import
+                    <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+                </label>
+                
+                <!-- Single Page Export -->
+                <button id="exportCSVBtn" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 touch-manipulation" title="Export current page/machine to CSV">
+                    <i class="fa-solid fa-file-csv"></i> Export Page
+                </button>
+
+                <!-- Export All Pages -->
+                <button id="exportAllPagesCSVBtn" class="px-3 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-teal-600/20 touch-manipulation" title="Export all pages/machines into one CSV">
+                    <i class="fa-solid fa-file-zipper"></i> Export All
+                </button>
+
+                <button id="clearStorageBtn" class="px-3 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-medium transition flex items-center gap-1.5 touch-manipulation" title="Clear All Saved Data">
+                    <i class="fa-solid fa-trash-can text-rose-400"></i> Clear Storage
+                </button>
+                <button id="printBtn" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-blue-600/20 touch-manipulation">
+                    <i class="fa-solid fa-print"></i> Print
+                </button>
+            </div>
+        </div>
+
+        <!-- Dynamic Multi-Page Tabs Bar -->
+        <nav class="flex items-center gap-2 overflow-x-auto custom-scrollbar pt-2 no-print" id="tabsBar">
+            <div id="pageTabsContainer" class="flex items-center gap-2"></div>
+            <button id="addNewPageBtn" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-blue-600/20 touch-manipulation shrink-0" title="Add New Page / Machine">
+                <i class="fa-solid fa-plus text-sm"></i>
+                <span class="hidden sm:inline">Add Page</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Key Metrics Grid -->
+    <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3 sm:gap-4 mb-6">
+        <div class="glass-card p-3 sm:p-4 rounded-2xl">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Days Active</span>
+                <span class="p-1 bg-blue-500/10 text-blue-400 rounded text-xs no-print"><i class="fa-solid fa-calendar-days"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-white" id="kpiDays">0</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Operational Days</div>
+        </div>
+
+        <div class="glass-card p-3 sm:p-4 rounded-2xl">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Pay-out %</span>
+                <span class="p-1 bg-purple-500/10 text-purple-400 rounded text-xs no-print"><i class="fa-solid fa-percent"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-purple-400" id="kpiPayout">0.00%</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Total OUT / Total IN</div>
+        </div>
+
+        <div class="glass-card p-3 sm:p-4 rounded-2xl">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Avg Daily Sales</span>
+                <span class="p-1 bg-amber-500/10 text-amber-400 rounded text-xs no-print"><i class="fa-solid fa-chart-line"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-amber-400" id="kpiADS">₱0.00</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Total Sales / Active Days</div>
+        </div>
+
+        <div class="glass-card p-3 sm:p-4 rounded-2xl">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Silver Tokens</span>
+                <span class="p-1 bg-slate-400/10 text-slate-300 rounded text-xs no-print"><i class="fa-solid fa-coins"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-slate-200" id="kpiSilver">0</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Total Silver Retrieved</div>
+        </div>
+
+        <div class="glass-card p-3 sm:p-4 rounded-2xl">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Gold Tokens</span>
+                <span class="p-1 bg-yellow-500/10 text-yellow-400 rounded text-xs no-print"><i class="fa-solid fa-coins"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-yellow-400" id="kpiGold">0</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Total Gold Retrieved</div>
+        </div>
+
+        <div class="glass-card p-3 sm:p-4 rounded-2xl border border-amber-500/20">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Fund vs Return</span>
+                <span class="p-1 bg-amber-500/10 text-amber-400 rounded text-xs no-print"><i class="fa-solid fa-right-left"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-amber-300" id="kpiFundReturnDiff">0</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Total Fund - Total Return</div>
+        </div>
+
+        <div class="glass-card p-3 sm:p-4 rounded-2xl">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Meter Income</span>
+                <span class="p-1 bg-emerald-500/10 text-emerald-400 rounded text-xs no-print"><i class="fa-solid fa-calculator"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-emerald-400" id="kpiMeterDiff">0</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Net Meter Difference</div>
+        </div>
+
+        <div class="glass-card p-3 sm:p-4 rounded-2xl border border-rose-500/20">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Net Variance</span>
+                <span class="p-1 bg-rose-500/10 text-rose-400 rounded text-xs no-print"><i class="fa-solid fa-scale-unbalanced"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-rose-400" id="kpiVariance">0</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Tokens Ret. - Meter Income</div>
+        </div>
+
+        <div class="glass-card p-3 sm:p-4 rounded-2xl col-span-2 sm:col-span-1">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">Total Sales</span>
+                <span class="p-1 bg-cyan-500/10 text-cyan-400 rounded text-xs no-print"><i class="fa-solid fa-sack-dollar"></i></span>
+            </div>
+            <div class="text-lg sm:text-xl font-bold text-cyan-400" id="kpiTotalSales">₱0.00</div>
+            <div class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 no-print">Total Daily Sales (Diff × 3.5)</div>
+        </div>
+    </section>
+
+    <!-- Visualizations -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
+        <div class="glass-card p-4 sm:p-6 rounded-2xl">
+            <h3 class="text-sm sm:text-base font-semibold text-white mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-chart-simple text-blue-400 no-print"></i> Daily Token Traffic (IN vs OUT)
+            </h3>
+            <div class="h-52 sm:h-64">
+                <canvas id="trafficChart"></canvas>
+            </div>
+        </div>
+
+        <div class="glass-card p-4 sm:p-6 rounded-2xl">
+            <h3 class="text-sm sm:text-base font-semibold text-white mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-sack-dollar text-emerald-400 no-print"></i> Daily Sales Trend (<span id="salesChartMonthText">31 Days</span>)
+            </h3>
+            <div class="h-52 sm:h-64">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- FLOATING MODAL: Machine Settings Section -->
+    <div id="machineSettingsModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-3 hidden no-print">
+        <div class="glass-card rounded-2xl overflow-hidden machine-settings-edit-box bg-slate-900/90 border border-slate-700 flex flex-col">
+            <div class="p-3.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div>
+                    <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-blue-400"></i> Machine Settings
+                    </h2>
+                    <p class="text-[10px] text-slate-400">Configure system parameters</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="addSettingRowBtn" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-md shadow-blue-600/20">
+                        <i class="fa-solid fa-plus text-[10px]"></i> Add Row
+                    </button>
+                    <button id="closeSettingsBtn" class="p-1 text-slate-400 hover:text-white transition rounded-lg hover:bg-slate-800" title="Close Settings">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-3 overflow-y-auto custom-scrollbar flex-1">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="text-slate-400 uppercase font-semibold border-b border-slate-800 text-[10px]">
+                            <th class="pb-2 px-2 w-1/2">Key</th>
+                            <th class="pb-2 px-2 w-1/2">Value</th>
+                            <th class="pb-2 px-1 text-center w-8"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60" id="settingsTableBody">
+                        <!-- Custom settings rows will be appended here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Editable 31-Day Table with Extended Mobile Inputs -->
+    <section class="glass-card rounded-2xl overflow-hidden mb-6">
+        <div class="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+                <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    Daily Meter Readings (<span id="tableMonthHeader">January</span>)
+                    <span class="text-[10px] sm:text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 font-normal px-2 py-0.5 rounded-full no-print">Extended Mobile Inputs</span>
+                </h2>
+                <p class="text-xs text-slate-400 no-print">Meter IN/OUT, Silver, Gold, Fund, and Return boxes are expanded for easier mobile editing</p>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-xs border-collapse min-w-[1050px]">
+                <thead>
+                    <tr class="bg-slate-800/80 text-slate-400 font-semibold border-b border-slate-700 text-[10px] sm:text-[11px]">
+                        <th rowspan="2" class="py-2.5 px-3 w-20 align-bottom border-r border-slate-700/60 sticky-col">DATE</th>
+                        <th colspan="2" class="py-1.5 px-2 text-center border-b border-r border-slate-700/60 text-slate-300">OVER-ALL METER</th>
+                        <th colspan="2" class="py-1.5 px-2 text-center border-b border-r border-slate-700/60 text-slate-300">TOTAL</th>
+                        <th rowspan="2" class="py-2.5 px-3 text-right text-emerald-400 w-20 border-r border-slate-700/60 align-bottom">DIFF</th>
+                        <th colspan="2" class="py-1.5 px-2 text-center border-b border-r border-slate-700/60 text-slate-300">TOKEN RETRIEVAL (EXTENDED)</th>
+                        <th colspan="2" class="py-1.5 px-2 text-center border-b border-r border-slate-700/60 text-slate-300">TOKEN ISSUANCE (EXTENDED)</th>
+                        <th rowspan="2" class="py-2.5 px-3 text-right w-20 border-r border-slate-700/60 align-bottom">PAY-OUT %</th>
+                        <th rowspan="2" class="py-2.5 px-3 text-right text-emerald-300 w-28 align-bottom">DAILY SALES</th>
+                    </tr>
+                    <tr class="bg-slate-800/80 text-slate-400 uppercase font-semibold border-b border-slate-700 text-[9px] sm:text-[10px]">
+                        <th class="py-1.5 px-1 text-right w-36 sm:w-32">IN</th>
+                        <th class="py-1.5 px-1 text-right w-36 sm:w-32 border-r border-slate-700/60">OUT</th>
+                        <th class="py-1.5 px-2 text-right text-blue-400 w-20">IN</th>
+                        <th class="py-1.5 px-2 text-right text-indigo-400 w-20 border-r border-slate-700/60">OUT</th>
+                        <th class="py-1.5 px-1 text-right text-slate-300 w-28 sm:w-24">SILVER</th>
+                        <th class="py-1.5 px-1 text-right text-yellow-400 w-28 sm:w-24 border-r border-slate-700/60">GOLD</th>
+                        <th class="py-1.5 px-1 text-right text-amber-400 w-28 sm:w-24">FUND</th>
+                        <th class="py-1.5 px-1 text-right text-purple-400 w-28 sm:w-24 border-r border-slate-700/60">RETURN</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800 text-slate-300" id="tableBody">
+                    <!-- Baseline Row -->
+                    <tr class="bg-slate-800/40 font-medium">
+                        <td class="py-2 px-3 text-slate-400 italic border-r border-slate-800 sticky-col">Last Month</td>
+                        <td class="py-2 px-1">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="baseIn" value="50457862" class="meter-input-extended border-blue-500/50 text-blue-300">
+                        </td>
+                        <td class="py-2 px-1 border-r border-slate-800">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="baseOut" value="47522985" class="meter-input-extended border-indigo-500/50 text-indigo-300">
+                        </td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600">-</td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600 border-r border-slate-800">-</td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600 border-r border-slate-800">-</td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600">-</td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600 border-r border-slate-800">-</td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600">-</td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600 border-r border-slate-800">-</td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600 border-r border-slate-800">-</td>
+                        <td class="py-2 px-2 text-right font-mono text-slate-600">-</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="bg-slate-800 border-t-2 border-slate-700 font-bold text-white text-xs">
+                        <td class="py-3 px-3 uppercase border-r border-slate-700 sticky-col">Total</td>
+                        <td class="py-3 px-1 text-right font-mono text-slate-500">-</td>
+                        <td class="py-3 px-1 text-right font-mono text-slate-500 border-r border-slate-700">-</td>
+                        <td class="py-3 px-2 text-right font-mono text-blue-400" id="footTotalIn">0</td>
+                        <td class="py-3 px-2 text-right font-mono text-indigo-400 border-r border-slate-700" id="footTotalOut">0</td>
+                        <td class="py-3 px-2 text-right font-mono text-emerald-400 border-r border-slate-700" id="footDiff">0</td>
+                        <td class="py-3 px-2 text-right font-mono text-slate-200" id="footSilver">0</td>
+                        <td class="py-3 px-2 text-right font-mono text-yellow-400 border-r border-slate-700" id="footGold">0</td>
+                        <td class="py-3 px-2 text-right font-mono text-amber-400" id="footFund">0</td>
+                        <td class="py-3 px-2 text-right font-mono text-purple-400 border-r border-slate-700" id="footReturn">0</td>
+                        <td class="py-3 px-2 text-right font-mono text-purple-300 border-r border-slate-700" id="footPayout">0.00%</td>
+                        <td class="py-3 px-2 text-right font-mono text-emerald-300 text-xs sm:text-sm" id="footSales">₱0.00</td>
+                    </tr>
+                    <tr class="bg-slate-800/90 border-t border-slate-700/80 font-bold text-xs">
+                        <td colspan="5" class="py-2.5 px-3 text-right uppercase tracking-wider text-slate-400 sticky-col">Total Fund vs Total Return Diff:</td>
+                        <td colspan="3" class="py-2.5 px-3 text-left font-mono text-amber-300 text-xs sm:text-sm border-r border-slate-700" id="footFundVsReturn">0</td>
+                        <td colspan="4" class="py-2.5 px-3 text-slate-400 text-[10px] font-normal italic">Total Fund - Total Return</td>
+                    </tr>
+                    <tr class="bg-slate-800/90 border-t border-slate-700/80 font-bold text-xs">
+                        <td colspan="5" class="py-2.5 px-3 text-right uppercase tracking-wider text-slate-400 sticky-col">Tokens Ret. vs Meter Income Diff:</td>
+                        <td colspan="3" class="py-2.5 px-3 text-left font-mono text-rose-400 text-xs sm:text-sm border-r border-slate-700" id="footTokensVsIncome">0</td>
+                        <td colspan="4" class="py-2.5 px-3 text-slate-400 text-[10px] font-normal italic">(Total Silver + Total Gold) - Total Meter Income</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </section>
+
+    <!-- Weekly Monitoring Section -->
+    <section class="glass-card rounded-2xl overflow-hidden mb-8">
+        <div class="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
+            <div>
+                <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-week text-blue-400 no-print"></i> Weekly Breakdown
+                    <span class="text-[10px] sm:text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 font-normal px-2 py-0.5 rounded-full no-print">Editable Ranges & Remarks</span>
+                </h2>
+                <p class="text-xs text-slate-400 no-print">Change week range bounds and add weekly notes</p>
+            </div>
+        </div>
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-xs border-collapse min-w-[700px]">
+                <thead>
+                    <tr class="bg-slate-800/80 text-slate-400 uppercase font-semibold border-b border-slate-700 text-[10px] sm:text-[11px]">
+                        <th class="py-3 px-3 w-28 sticky-col">Week</th>
+                        <th class="py-3 px-2 text-center w-20">From</th>
+                        <th class="py-3 px-2 text-center w-20">To</th>
+                        <th class="py-3 px-3 text-right text-blue-400">Token IN</th>
+                        <th class="py-3 px-3 text-right text-indigo-400">Token OUT</th>
+                        <th class="py-3 px-3 text-right text-emerald-400">Income</th>
+                        <th class="py-3 px-3 text-right text-slate-200">Silver</th>
+                        <th class="py-3 px-3 text-right text-yellow-400">Gold</th>
+                        <th class="py-3 px-3 text-right text-rose-400">Variances</th>
+                        <th class="py-3 px-3 text-left w-48 text-slate-300">Remarks</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800 text-slate-300 font-mono" id="weeklyTableBody"></tbody>
+                <tfoot>
+                    <tr class="bg-slate-800 border-t-2 border-slate-700 font-bold text-white text-xs">
+                        <td colspan="3" class="py-3.5 px-3 uppercase font-sans sticky-col">Grand Total</td>
+                        <td class="py-3.5 px-3 text-right font-mono text-blue-400" id="weekGrandIn">0</td>
+                        <td class="py-3.5 px-3 text-right font-mono text-indigo-400" id="weekGrandOut">0</td>
+                        <td class="py-3.5 px-3 text-right font-mono text-emerald-400" id="weekGrandIncome">0</td>
+                        <td class="py-3.5 px-3 text-right font-mono text-slate-200" id="weekGrandSilver">0</td>
+                        <td class="py-3.5 px-3 text-right font-mono text-yellow-400" id="weekGrandGold">0</td>
+                        <td class="py-3.5 px-3 text-right font-mono text-rose-400" id="weekGrandVariance">0</td>
+                        <td class="py-3.5 px-3 font-sans text-slate-500 text-[10px] font-normal italic">-</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </section>
+
+    <!-- Dynamic PWA Manifest & Service Worker Script -->
+    <script>
+        // 1. Generate PWA Manifest Dynamically
+        const manifest = {
+            "name": "Meter Dashboard Monitoring",
+            "short_name": "MeterDash",
+            "start_url": "./",
+            "display": "standalone",
+            "background_color": "#0f172a",
+            "theme_color": "#0f172a",
+            "icons": [
+                {
+                    "src": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/gamepad.svg",
+                    "sizes": "512x512",
+                    "type": "image/svg+xml"
+                }
+            ]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+
+        // 2. Register Dynamic Service Worker for Offline Support / PWA Installability
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('activate', (e) => {
+                    e.waitUntil(clients.claim());
+                });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(
+                        fetch(e.request).catch(() => caches.match(e.request))
+                    );
+                });
+            `;
+            const swBlob = new Blob([swCode], {type: 'text/javascript'});
+            const swUrl = URL.createObjectURL(swBlob);
+            navigator.serviceWorker.register(swUrl)
+                .then(() => console.log('PWA Service Worker registered successfully.'))
+                .catch((err) => console.log('Service Worker registration failed:', err));
+        }
+    </script>
+
+    <!-- Linked External JavaScript File -->
+    <script src="script.js" defer></script>
+</body>
+</html>
